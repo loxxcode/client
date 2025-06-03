@@ -137,15 +137,12 @@ export const getTodaySales = async () => {
 
 // Reports API
 export const getSalesReport = async (startDate, endDate) => {
-  // Create a cancel token source at the beginning only if axios and CancelToken exist
-  let source;
+  // Create a cancel token source at the beginning
+  const CancelToken = axios.CancelToken;
+  const source = CancelToken.source();
   let timeoutId;
-  
+
   try {
-    if (axios && axios.CancelToken) {
-      const CancelToken = axios.CancelToken;
-      source = CancelToken.source();
-    }
     if (!startDate || !endDate) {
       throw new Error('Both startDate and endDate are required');
     }
@@ -168,27 +165,19 @@ export const getSalesReport = async (startDate, endDate) => {
       endDate: formattedEndDate 
     });
     
-    // Add a timeout to cancel the request if it takes too long
-    // Only set timeout if source exists
-    if (source) {
-      timeoutId = setTimeout(() => {
-        source.cancel('Request took too long');
-      }, 30000); // 30 seconds timeout
-    }
+    // Set a timeout for the request
+    timeoutId = setTimeout(() => {
+      source.cancel('Request timed out after 10 seconds');
+    }, 10000);
 
-    const params = {
-      startDate: formattedStartDate,
-      endDate: formattedEndDate
-    };
-
-    const axiosConfig = { params };
-    
-    // Only add cancel token if source exists
-    if (source) {
-      axiosConfig.cancelToken = source.token;
-    }
-
-    const response = await axios.get('/api/reports/sales', axiosConfig);
+    const response = await axios.get('/api/reports/sales', {
+      params: {
+        startDate: formattedStartDate,
+        endDate: formattedEndDate
+      },
+      cancelToken: source.token,
+      timeout: 15000 // 15 seconds timeout (axios's own timeout as a fallback)
+    });
     
     // Clear the timeout since the request completed
     if (timeoutId) clearTimeout(timeoutId);
@@ -219,10 +208,6 @@ export const getSalesReport = async (startDate, endDate) => {
     console.log('Sales report response:', result);
     return result;
   } catch (error) {
-    // Clear timeout if it exists
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
     let errorMessage = 'Failed to fetch sales report';
     let errorDetails = {};
 
@@ -267,11 +252,6 @@ export const getSalesReport = async (startDate, endDate) => {
     formattedError.request = error.request;
     
     throw formattedError;
-  } finally {
-    // Always clean up the timeout
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
   }
 };
 
