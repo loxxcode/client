@@ -5,6 +5,7 @@ const BACKEND_URL = 'https://icyizere-v2-production.up.railway.app';
 
 // Temporary workaround since the Railway backend is down
 // This will intercept specific endpoints and provide mock responses
+
 module.exports = async (req, res) => {
   // Set CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', '*');
