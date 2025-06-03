@@ -137,11 +137,6 @@ export const getTodaySales = async () => {
 
 // Reports API
 export const getSalesReport = async (startDate, endDate) => {
-  // Create a cancel token source at the beginning
-  const CancelToken = axios.CancelToken;
-  const source = CancelToken.source();
-  let timeoutId;
-
   try {
     if (!startDate || !endDate) {
       throw new Error('Both startDate and endDate are required');
@@ -164,23 +159,13 @@ export const getSalesReport = async (startDate, endDate) => {
       startDate: formattedStartDate, 
       endDate: formattedEndDate 
     });
-    
-    // Set a timeout for the request
-    timeoutId = setTimeout(() => {
-      source.cancel('Request timed out after 10 seconds');
-    }, 10000);
 
     const response = await axios.get('/api/reports/sales', {
       params: {
         startDate: formattedStartDate,
         endDate: formattedEndDate
-      },
-      cancelToken: source.token,
-      timeout: 15000 // 15 seconds timeout (axios's own timeout as a fallback)
+      }
     });
-    
-    // Clear the timeout since the request completed
-    if (timeoutId) clearTimeout(timeoutId);
     
     // Process the response data
     const responseData = response.data;
@@ -189,69 +174,32 @@ export const getSalesReport = async (startDate, endDate) => {
       throw new Error('Empty response from server');
     }
 
-    // Ensure the response has the expected structure
-    const result = {
-      success: responseData.success,
-      message: responseData.message,
+    // Ensure the response has the expected structure with default values
+    return {
+      success: true,
+      message: responseData.message || 'Success',
       totalSales: responseData.totalSales || 0,
       totalRevenue: responseData.totalRevenue || 0,
       productSales: Array.isArray(responseData.productSales) 
-        ? responseData.productSales 
+        ? responseData.productSales.map(product => ({
+            id: product.productId || product._id || `temp-${Math.random().toString(36).substr(2, 9)}`,
+            productName: product.productName || 'Unknown Product',
+            category: product.category || 'Uncategorized',
+            totalQuantity: Number(product.totalQuantity) || 0,
+            totalAmount: Number(product.totalAmount) || 0
+          }))
         : [],
       dailySales: Array.isArray(responseData.dailySales) 
-        ? responseData.dailySales 
-        : [],
-      // Add any additional fields from the response
-      ...responseData
+        ? responseData.dailySales.map(sale => ({
+            date: sale.date || new Date().toISOString().split('T')[0],
+            totalAmount: Number(sale.totalAmount) || 0,
+            salesCount: Number(sale.salesCount) || 0
+          }))
+        : []
     };
-
-    console.log('Sales report response:', result);
-    return result;
   } catch (error) {
-    let errorMessage = 'Failed to fetch sales report';
-    let errorDetails = {};
-
-    if (axios.isCancel(error)) {
-      errorMessage = 'Request was cancelled';
-      errorDetails = { reason: 'cancelled' };
-    } else if (error.response) {
-      // Server responded with a status code outside 2xx
-      const { status, data } = error.response;
-      errorMessage = data?.message || `Server responded with status ${status}`;
-      errorDetails = {
-        status,
-        data: data || {},
-        headers: error.response.headers
-      };
-    } else if (error.request) {
-      // Request was made but no response received
-      errorMessage = 'No response received from server';
-      errorDetails = { request: error.request };
-    } else {
-      // Something happened in setting up the request
-      errorMessage = error.message || 'Error setting up request';
-      errorDetails = { message: error.message };
-    }
-
-    console.error('Error in getSalesReport:', {
-      message: errorMessage,
-      ...errorDetails,
-      config: {
-        url: error.config?.url,
-        params: error.config?.params,
-        method: error.config?.method,
-        timeout: error.config?.timeout
-      },
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-
-    // Create a new error with our formatted message
-    const formattedError = new Error(errorMessage);
-    formattedError.isAxiosError = axios.isAxiosError(error);
-    formattedError.response = error.response;
-    formattedError.request = error.request;
-    
-    throw formattedError;
+    console.error('Error in getSalesReport:', error);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to fetch sales report');
   }
 };
 
