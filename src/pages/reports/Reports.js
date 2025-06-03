@@ -1,16 +1,28 @@
 import React, { useState, useCallback } from 'react';
 import { 
-  Box, Tabs, Tab, Paper, Typography, IconButton, Tooltip, Snackbar, Alert, TextField 
+  Box, 
+  Tabs, 
+  Tab, 
+  Paper,
+  Typography,
+  IconButton,
+  Tooltip,
+  Snackbar,
+  Alert,
+  TextField
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { subDays } from 'date-fns';
 import ProductSalesReport from './ProductSalesReport';
 import SalesSummaryReport from './SalesSummaryReport';
+import InventoryReport from './InventoryReport';
+import AnalyticsReport from './AnalyticsReport';
 import { Refresh as RefreshIcon, GetApp as DownloadIcon } from '@mui/icons-material';
 
 const TabPanel = (props) => {
   const { children, value, index, ...other } = props;
+
   return (
     <div
       role="tabpanel"
@@ -29,7 +41,7 @@ const TabPanel = (props) => {
 };
 
 const Reports = () => {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(0); // Default to Sales Summary tab
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 30),
     endDate: new Date()
@@ -41,7 +53,9 @@ const Reports = () => {
     severity: 'success'
   });
 
-  const handleTabChange = (event, newValue) => setTabValue(newValue);
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
 
   const handleDateRangeChange = (field, value) => {
     setDateRange(prev => ({
@@ -52,13 +66,15 @@ const Reports = () => {
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
+    // Simulate API call
     setTimeout(() => {
       setIsRefreshing(false);
       showSnackbar('Reports refreshed successfully', 'success');
-    }, 500); // Just a quick feedback, actual data is fetched in child components
+    }, 1000);
   }, []);
 
   const handleExport = useCallback(() => {
+    // This would trigger export in the active report component
     showSnackbar('Export functionality will be implemented soon', 'info');
   }, []);
 
@@ -76,13 +92,37 @@ const Reports = () => {
 
   return (
     <Box sx={{ p: 3, backgroundColor: '#141414', minHeight: '100vh' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: { xs: 'column', sm: 'row' }, mb: 3, gap: 2 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start',
+        flexDirection: { xs: 'column', sm: 'row' },
+        mb: 3, 
+        gap: 2 
+      }}>
         <Typography variant="h4" sx={{ color: '#fff', fontWeight: 'bold' }}>
           Reports
         </Typography>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, width: '100%', '& > *': { width: { xs: '100%', sm: 'auto' } } }}>
+        
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 2, 
+          width: '100%',
+          '& > *': {
+            width: { xs: '100%', sm: 'auto' }
+          }
+        }}>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, width: '100%', '& > *': { width: { xs: '100%', sm: 'auto' } } }}>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row', md: 'row', lg: 'row' },
+              gap: 2, 
+              width: '100%',
+              '& > *': {
+                width: { xs: '100%', sm: 'auto', md: 'auto', lg: 'auto' }
+              }
+            }}>
               <DatePicker
                 label="Start Date"
                 value={dateRange.startDate}
@@ -127,7 +167,16 @@ const Reports = () => {
               />
             </Box>
           </LocalizationProvider>
-          <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-end' }, '& > *': { flex: { xs: 1, sm: 'none' } } }}>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1,
+            width: { xs: '100%', sm: 'auto' },
+            justifyContent: { xs: 'space-between', sm: 'flex-end' },
+            '& > *': {
+              flex: { xs: 1, sm: 'none' }
+            }
+          }}>
             <Tooltip title="Refresh Reports">
               <IconButton 
                 onClick={handleRefresh}
@@ -142,6 +191,7 @@ const Reports = () => {
                 <RefreshIcon className={isRefreshing ? 'spin' : ''} />
               </IconButton>
             </Tooltip>
+            
             <Tooltip title="Export Report">
               <IconButton 
                 onClick={handleExport}
@@ -157,6 +207,7 @@ const Reports = () => {
           </Box>
         </Box>
       </Box>
+
       <Paper sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
         <Box sx={{ width: '100%', overflowX: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
           <Tabs 
@@ -207,43 +258,40 @@ const Reports = () => {
             <Tab label="Analytics" />
           </Tabs>
         </Box>
+
         <TabPanel value={tabValue} index={0}>
           <SalesSummaryReport 
             dateRange={dateRange} 
             isRefreshing={isRefreshing}
             onRefresh={handleRefresh}
-            apiBaseUrl="https://server-az7z.onrender.com"
           />
         </TabPanel>
+        
         <TabPanel value={tabValue} index={1}>
           <ProductSalesReport 
             dateRange={dateRange} 
             isRefreshing={isRefreshing}
             onRefresh={handleRefresh}
-            apiBaseUrl="https://server-az7z.onrender.com"
           />
         </TabPanel>
+        
         <TabPanel value={tabValue} index={2}>
-          <Box sx={{ p: 4, textAlign: 'center', color: '#999', backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px dashed #333' }}>
-            <Typography variant="h6" gutterBottom>
-              Coming Soon
-            </Typography>
-            <Typography variant="body2">
-              Inventory report is under development
-            </Typography>
-          </Box>
+          <InventoryReport 
+            dateRange={dateRange} 
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
         </TabPanel>
+        
         <TabPanel value={tabValue} index={3}>
-          <Box sx={{ p: 4, textAlign: 'center', color: '#999', backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px dashed #333' }}>
-            <Typography variant="h6" gutterBottom>
-              Coming Soon
-            </Typography>
-            <Typography variant="body2">
-              Customer Analytics report is under development
-            </Typography>
-          </Box>
+          <AnalyticsReport 
+            dateRange={dateRange} 
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
         </TabPanel>
       </Paper>
+      
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -264,6 +312,7 @@ const Reports = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      
       <style jsx global>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }

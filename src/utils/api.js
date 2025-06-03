@@ -136,6 +136,34 @@ export const getTodaySales = async () => {
 };
 
 // Reports API
+export const getSalesSummaryReport = async (startDate, endDate) => {
+  const response = await axios.get('/api/reports/sales-summary', {
+    params: { startDate, endDate }
+  });
+  return response.data;
+};
+
+export const getProductSalesReport = async (startDate, endDate) => {
+  const response = await axios.get('/api/reports/product-sales', {
+    params: { startDate, endDate }
+  });
+  return response.data;
+};
+
+export const getInventoryReport = async (startDate, endDate) => {
+  const response = await axios.get('/api/reports/inventory', {
+    params: { startDate, endDate }
+  });
+  return response.data;
+};
+
+export const getAnalyticsReport = async (startDate, endDate) => {
+  const response = await axios.get('/api/reports/analytics', {
+    params: { startDate, endDate }
+  });
+  return response.data;
+};
+
 export const getSalesReport = async (startDate, endDate) => {
   // Create a cancel token source at the beginning
   const CancelToken = axios.CancelToken;
@@ -253,32 +281,6 @@ export const getSalesReport = async (startDate, endDate) => {
     
     throw formattedError;
   }
-};
-
-export const getProductSalesReport = async (startDate, endDate) => {
-  const response = await axios.get(`/api/reports/product-sales?startDate=${startDate}&endDate=${endDate}`);
-  return response.data;
-};
-
-export const getStockStatusReport = async () => {
-  const response = await axios.get('/api/reports/stock-status');
-  return response.data;
-};
-
-export const getSupplierDeliveriesReport = async (startDate, endDate, supplierId = '') => {
-  const url = `/api/reports/supplier-deliveries?startDate=${startDate}&endDate=${endDate}${supplierId ? `&supplierId=${supplierId}` : ''}`;
-  const response = await axios.get(url);
-  return response.data;
-};
-
-export const getProfitReport = async (startDate, endDate) => {
-  const response = await axios.get(`/api/reports/profit?startDate=${startDate}&endDate=${endDate}`);
-  return response.data;
-};
-
-export const getOutstandingDebtsReport = async () => {
-  const response = await axios.get('/api/reports/outstanding-debts');
-  return response.data;
 };
 
 export const getActivityReport = async (startDate, endDate) => {
