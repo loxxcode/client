@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import axios from 'axios';
 import {
   Box,
   Typography,
@@ -20,7 +21,6 @@ import {
   Tooltip,
   Card,
   CardContent,
-
 } from '@mui/material';
 import {
   ShoppingCart as ShoppingCartIcon,
@@ -29,9 +29,7 @@ import {
   GetApp as GetAppIcon,
   Refresh as RefreshIcon,
   TrendingUp as TrendingUpIcon,
-
 } from '@mui/icons-material';
-
 
 // Netflix-inspired color scheme
 const COLORS = {
@@ -53,7 +51,8 @@ const ProductSalesReport = ({
   dateRange: propDateRange,
   isRefreshing: propIsRefreshing,
   onRefresh: propOnRefresh,
-  onExport: propOnExport
+  onExport: propOnExport,
+  apiBaseUrl = "https://server-az7z.onrender.com"
 }) => {
   const [loading, setLoading] = useState(false);
   const [localLoading, setLocalLoading] = useState(false);
@@ -62,6 +61,7 @@ const ProductSalesReport = ({
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [order, setOrder] = useState('desc');
   const [orderBy, setOrderBy] = useState('totalSales');
+  const [error, setError] = useState('');
 
   // Handle page change
   const handleChangePage = (event, newPage) => {
@@ -81,53 +81,51 @@ const ProductSalesReport = ({
     setOrderBy(property);
   };
 
-  // Mock data fetch - replace with actual API call
+  // Fetch data from API
   const fetchReportData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data
-      const mockData = {
-        totalProducts: 42,
-        totalSales: 1250000,
-        totalRevenue: 8500000,
-        avgOrderValue: 45000,
-        products: [
-          // Add sample product data here
-        ]
-      };
-      
-      setReportData(mockData);
-    } catch (error) {
-      console.error('Error fetching report data:', error);
+      const res = await axios.get(
+        `${apiBaseUrl}/api/reports/product-sales`,
+        {
+          params: {
+            startDate: propDateRange.startDate.toISOString(),
+            endDate: propDateRange.endDate.toISOString(),
+          },
+        }
+      );
+      setReportData(res.data);
+    } catch (err) {
+      setError('Failed to load report data. Please try again.');
+      setReportData(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apiBaseUrl, propDateRange]);
 
-  // Initial data fetch
+  // Initial data fetch and on refresh
   useEffect(() => {
     fetchReportData();
-  }, [fetchReportData]);
+    // eslint-disable-next-line
+  }, [fetchReportData, propIsRefreshing]);
 
   // Handle refresh
   const handleRefresh = () => {
     setLocalLoading(true);
     fetchReportData().finally(() => setLocalLoading(false));
+    if (onRefresh) onRefresh();
   };
 
   // Handle export
   const handleExport = () => {
-    // Implement export functionality
-    console.log('Exporting report data...');
+    // Implement export functionality if needed
+    if (onExport) onExport();
   };
 
   // Sort data
   const sortedData = useMemo(() => {
     if (!reportData?.products) return [];
-    
     return [...reportData.products].sort((a, b) => {
       if (a[orderBy] < b[orderBy]) {
         return order === 'asc' ? -1 : 1;
@@ -160,10 +158,10 @@ const ProductSalesReport = ({
   }
 
   // Error state
-  if (!loading && !reportData) {
+  if (error && !loading) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
-        Failed to load report data. Please try again.
+        {error}
       </Alert>
     );
   }
