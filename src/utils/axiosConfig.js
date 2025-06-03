@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Use the deployed server URL
-const API_URL = 'https://server-az7z.onrender.com';
+// Use relative URL for API requests which will be proxied by Vercel
+// This will make requests go to the same domain as the frontend, avoiding CORS
+const API_URL = '';  // Empty string means same origin
 
 // Configure Axios
 const instance = axios.create({
@@ -52,6 +53,7 @@ instance.interceptors.response.use(
       originalRequest._retry = true;
       
       // Just retry with the same configuration
+      // This uses the relative URL which works with Vercel's proxy
       console.log(`Retrying request: ${originalRequest.method.toUpperCase()} ${originalRequest.url}`);
       
       return instance(originalRequest);
