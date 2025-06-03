@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Use relative URL for API requests which will be proxied by Vercel
 // This will make requests go to the same domain as the frontend, avoiding CORS
-const API_URL = '';  // Empty string means same origin
+const API_URL = 'https://client-nu-bay.vercel.app';  // Empty string means same origin
 
 // Configure Axios
 const instance = axios.create({
