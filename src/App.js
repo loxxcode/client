@@ -30,6 +30,7 @@ import Suppliers from './pages/suppliers/Suppliers';
 import StockIn from './pages/stockIn/StockIn';
 import Sales from './pages/sales/Sales';
 import Reports from './pages/reports/Reports';
+import GenerateReport from './pages/reports/GenerateReport';
 
 // CSS
 import './App.css';
@@ -323,6 +324,7 @@ const AnimatedRoutes = () => {
           <Route path="stock-in" element={<StockIn />} />
           <Route path="sales" element={<Sales />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="reports/generate" element={<GenerateReport />} />
         </Route>
       </Routes>
     </AnimatePresence>
