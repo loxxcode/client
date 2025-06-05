@@ -19,6 +19,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import axios from '../../utils/axiosConfig';
 
 // Netflix-inspired styled components
 const NetflixTextField = styled(TextField)(({ theme }) => ({
@@ -83,30 +84,27 @@ const Login = () => {
     try {
       setLoading(true);
       
-      // Using direct fetch API with CORS mode to bypass axios issues
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const response = await axios.post('/auth/login', {
+        email,
+        password
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-      }
+      // Store token
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
       
-      const data = await response.json();
+      // Update auth context
+      await login(response.data);
       
-      // Manually handle the login success
-      localStorage.setItem('token', data.token);
-      await login({ email, password }); // Still try the regular login for state updates
+      // Redirect to dashboard
       navigate('/');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Login failed. Please check your credentials or network connection.');
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(
+        error.response?.data?.message || 
+        'Network error. Please check your connection.'
+      );
     } finally {
       setLoading(false);
     }
