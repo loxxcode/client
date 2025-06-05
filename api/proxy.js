@@ -1,7 +1,7 @@
 // api/proxy.js - Vercel Serverless Function to handle API requests with Railway backend fallback
 
 // Target backend URL - normally would point to Railway
-const BACKEND_URL = 'https://icyizere-v2-production.up.railway.app';
+const BACKEND_URL = 'https://server-az7z.onrender.com';
 
 // Temporary workaround since the Railway backend is down
 // This will intercept specific endpoints and provide mock responses

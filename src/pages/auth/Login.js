@@ -19,7 +19,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import axios from '../../utils/axiosConfig';
+import { fetchApi } from '../../utils/apiConfig';
 
 // Netflix-inspired styled components
 const NetflixTextField = styled(TextField)(({ theme }) => ({
@@ -75,36 +75,22 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
-    
+    setLoading(true);
+
     try {
-      setLoading(true);
-      
-      const response = await axios.post('/auth/login', {
-        email,
-        password
+      const response = await fetchApi('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
       });
-      
-      // Store token
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      
-      // Update auth context
-      await login(response.data);
-      
-      // Redirect to dashboard
-      navigate('/');
-      
+
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        await login(response);
+        navigate('/');
+      }
     } catch (error) {
+      setError(error.message || 'Login failed. Please try again.');
       console.error('Login error:', error);
-      setError(
-        error.response?.data?.message || 
-        'Network error. Please check your connection.'
-      );
     } finally {
       setLoading(false);
     }

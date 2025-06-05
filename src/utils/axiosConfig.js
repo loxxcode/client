@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 // Use the server URL for API requests
-const API_URL = 'https://server-az7z.onrender.com';
+const API_URL = process.env.NODE_ENV === 'development' 
+  ? '/api' // This will use the proxy in development
+  : 'https://server-az7z.onrender.com/api';
+
 
 // Configure Axios
 const instance = axios.create({
