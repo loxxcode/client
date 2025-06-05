@@ -9,18 +9,15 @@ const API_URL = process.env.NODE_ENV === 'development'
 // Configure Axios
 const instance = axios.create({
   baseURL: API_URL,
-  withCredentials: false, // Important for CORS
-  timeout: 30000, // Increased timeout to 30 seconds
+  withCredentials: true, // This is valid and needed for cookies
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    // Adding non-standard headers that might help bypass CORS restrictions
-    'X-Requested-With': 'XMLHttpRequest',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,PATCH,OPTIONS',
-    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'  
+    // ✅ DO NOT include CORS headers like allowedHeaders or access-control-* here
   }
 });
+
 
 // Log the configuration
 console.log('API configured with direct connection to:', API_URL);
