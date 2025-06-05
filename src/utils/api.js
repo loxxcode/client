@@ -332,3 +332,10 @@ export const getActivityReport = async (startDate, endDate) => {
     };
   }
 };
+
+export const getStockStatusReport = async (startDate, endDate) => {
+  const response = await axios.get('/api/reports/stock-status', {
+    params: { startDate, endDate }
+  });
+  return response.data;
+};

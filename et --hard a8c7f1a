@@ -1,0 +1,21 @@
+[33ma86ebb1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Implement ProtectedRoute component and refactor routing in App.js
+[33m000793f[m Update login API endpoint and enhance token handling in Login component
+[33md2d5497[m Refactor authentication context and implement ProtectedRoute component
+[33m3265795[m Refactor report components to use centralized API methods and improve data handling
+[33mbdad238[m Update proxy backend URL, add http-proxy-middleware, and implement stock status report API
+[33m25f9cdd[m Update Sales.js
+[33m4c59627[m report changes
+[33m4b9ba9b[m report is ch
+[33m29da40f[m sales report
+[33m76d9f9d[m sales report changes
+[33mfe1bed8[m add api url
+[33m8ddef8e[m revert changes
+[33m69f84ed[m change report
+[33mc4eb83f[m axios config
+[33m2915089[m sales error debbuging
+[33m0dff749[m change
+[33m743433c[m change path vercel
+[33m285d005[m chenge destination
+[33mbeba567[m change vercel configuration
+[33m28a0187[m change api backend
+[33m4a64e69[m initial commit icyizere system
