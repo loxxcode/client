@@ -28,6 +28,9 @@ import { subDays } from 'date-fns';
 import { Refresh as RefreshIcon, GetApp as DownloadIcon } from '@mui/icons-material';
 import axios from 'axios';
 
+// Add base URL configuration
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Report = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +69,7 @@ const Report = () => {
 
       console.log('Fetching data with dates:', { formattedStartDate, formattedEndDate });
 
-      const response = await axios.get('http://localhost:5000/api/reports/sales', {
+      const response = await axios.get(`${API_BASE_URL}/api/reports/sales`, {
         params: {
           startDate: formattedStartDate,
           endDate: formattedEndDate
@@ -84,7 +87,6 @@ const Report = () => {
         const reportData = response.data.data || response.data;
         
         if (Array.isArray(reportData)) {
-          // Log the first few items to check their structure
           console.log('First few items in report data:', reportData.slice(0, 3));
           setData(reportData);
           setError(null);
@@ -120,7 +122,7 @@ const Report = () => {
           errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
         }
       } else if (err.request) {
-        errorMessage = 'No response from server. Please check your connection.';
+        errorMessage = 'No response from server. Please check your connection and ensure the API is accessible.';
       }
       
       setError(errorMessage);
@@ -166,7 +168,7 @@ const Report = () => {
       const formattedStartDate = dateRange.startDate.toISOString().split('T')[0];
       const formattedEndDate = dateRange.endDate.toISOString().split('T')[0];
 
-      const response = await axios.get('http://localhost:5000/api/reports/sales/export', {
+      const response = await axios.get(`${API_BASE_URL}/api/reports/sales/export`, {
         params: {
           startDate: formattedStartDate,
           endDate: formattedEndDate
@@ -201,7 +203,7 @@ const Report = () => {
           errorMessage = err.response.data?.message || `Export failed: ${err.response.status}`;
         }
       } else if (err.request) {
-        errorMessage = 'No response from server. Please check your connection.';
+        errorMessage = 'No response from server. Please check your connection and ensure the API is accessible.';
       }
       
       showSnackbar(errorMessage, 'error');
