@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -21,11 +21,26 @@ import {
   Tooltip,
   Snackbar,
   Button,
+  Chip,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Stack,
+  LinearProgress,
+  Divider,
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { subDays } from 'date-fns';
-import { Refresh as RefreshIcon, GetApp as DownloadIcon } from '@mui/icons-material';
+import { subDays, format, parseISO } from 'date-fns';
+import {
+  Refresh as RefreshIcon,
+  GetApp as DownloadIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  FilterList as FilterListIcon,
+  Sort as SortIcon,
+} from '@mui/icons-material';
 import axios from 'axios';
 
 // Update base URL configuration to use production URL when deployed
@@ -53,6 +68,17 @@ const Report = () => {
     open: false,
     message: '',
     severity: 'success'
+  });
+  const [sortConfig, setSortConfig] = useState({
+    key: 'date',
+    direction: 'desc'
+  });
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [summary, setSummary] = useState({
+    totalSales: 0,
+    totalQuantity: 0,
+    averageOrderValue: 0,
+    topProducts: []
   });
 
   useEffect(() => {
@@ -110,7 +136,7 @@ const Report = () => {
           if (Array.isArray(salesData)) {
             console.log('First few items in sales data:', salesData.slice(0, 3));
             setData(salesData);
-            setError(null);
+      setError(null);
           } else {
             setData([]);
             setError('Invalid data format received from server');
@@ -315,24 +341,169 @@ const Report = () => {
     }
   };
 
+  const calculateSummary = useMemo(() => {
+    if (!data.length) return;
+
+    const totalSales = data.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+    const totalQuantity = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const averageOrderValue = totalSales / data.length;
+
+    // Calculate top products
+    const productSales = data.reduce((acc, item) => {
+      const productName = item.productName || item.product?.name || 'Unknown';
+      acc[productName] = (acc[productName] || 0) + (item.totalAmount || 0);
+      return acc;
+    }, {});
+
+    const topProducts = Object.entries(productSales)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, amount]) => ({ name, amount }));
+
+    setSummary({
+      totalSales,
+      totalQuantity,
+      averageOrderValue,
+      topProducts
+    });
+  }, [data]);
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const getSortedData = () => {
+    const sortedData = [...data];
+    if (sortConfig.key) {
+      sortedData.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        if (sortConfig.key === 'date') {
+          aValue = new Date(a.date || a.saleDate);
+          bValue = new Date(b.date || b.saleDate);
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortedData;
+  };
+
   const filteredData = data.filter((item) => {
     const searchTermLower = searchTerm.toLowerCase();
-    
-    // Safely check each field that might be undefined
     const productName = (item.productName || item.product?.name || '').toLowerCase();
-    const date = formatDate(item.date).toLowerCase();
-    const status = (item.status || '').toLowerCase();
+    const date = formatDate(item.date || item.saleDate).toLowerCase();
+    const status = (item.status || 'Completed').toLowerCase();
     const quantity = String(item.quantity || '').toLowerCase();
     const totalAmount = String(item.totalAmount || '').toLowerCase();
 
-    return (
+    const matchesSearch = 
       productName.includes(searchTermLower) ||
       date.includes(searchTermLower) ||
       status.includes(searchTermLower) ||
       quantity.includes(searchTermLower) ||
-      totalAmount.includes(searchTermLower)
-    );
+      totalAmount.includes(searchTermLower);
+
+    const matchesStatus = filterStatus === 'all' || 
+      (item.status || 'Completed').toLowerCase() === filterStatus.toLowerCase();
+
+    return matchesSearch && matchesStatus;
   });
+
+  const renderSummaryCards = () => (
+    <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card sx={{ 
+          bgcolor: 'rgba(255, 255, 255, 0.05)',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}>
+          <CardContent>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Total Sales
+            </Typography>
+            <Typography variant="h4" color="primary" sx={{ mb: 1 }}>
+              ${summary.totalSales.toFixed(2)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Last 30 days
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card sx={{ 
+          bgcolor: 'rgba(255, 255, 255, 0.05)',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}>
+          <CardContent>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Total Quantity
+            </Typography>
+            <Typography variant="h4" color="primary" sx={{ mb: 1 }}>
+              {summary.totalQuantity}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Units sold
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card sx={{ 
+          bgcolor: 'rgba(255, 255, 255, 0.05)',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}>
+          <CardContent>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Average Order
+            </Typography>
+            <Typography variant="h4" color="primary" sx={{ mb: 1 }}>
+              ${summary.averageOrderValue.toFixed(2)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Per transaction
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card sx={{ 
+          bgcolor: 'rgba(255, 255, 255, 0.05)',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}>
+          <CardContent>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Top Product
+            </Typography>
+            <Typography variant="h4" color="primary" sx={{ mb: 1 }}>
+              {summary.topProducts[0]?.name || 'N/A'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              ${summary.topProducts[0]?.amount.toFixed(2) || '0.00'}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
 
   if (loading && !isRefreshing) {
     return (
@@ -353,7 +524,7 @@ const Report = () => {
         gap: 2 
       }}>
         <Typography variant="h4" sx={{ color: '#fff', fontWeight: 'bold' }}>
-          Detailed Report
+          Sales Analytics Dashboard
         </Typography>
         
         <Box sx={{ 
@@ -483,16 +654,19 @@ const Report = () => {
         </Alert>
       )}
 
+      {renderSummaryCards()}
+
       <Paper sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
+        <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <TextField
           fullWidth
           label="Search"
           variant="outlined"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by product, date, status..."
+            placeholder="Search by product, date, status..."
           sx={{ 
-            mb: 2,
+              flex: 1,
             '& .MuiOutlinedInput-root': {
               '& fieldset': { borderColor: '#333' },
               '&:hover fieldset': { borderColor: '#e50914' },
@@ -502,49 +676,101 @@ const Report = () => {
           }}
         />
 
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel id="status-filter-label" sx={{ color: '#999' }}>Status</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              label="Status"
+              sx={{
+                color: '#fff',
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#333' },
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e50914' },
+                '& .MuiSelect-icon': { color: '#fff' },
+              }}
+            >
+              <MenuItem value="all">All Status</MenuItem>
+              <MenuItem value="completed">Completed</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="cancelled">Cancelled</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Date</TableCell>
-                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Product</TableCell>
-                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Quantity</TableCell>
-                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Total Amount</TableCell>
-                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Status</TableCell>
+                <TableCell 
+                  sx={{ color: '#fff', borderColor: '#333', cursor: 'pointer' }}
+                  onClick={() => handleSort('date')}
+                >
+                  Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  sx={{ color: '#fff', borderColor: '#333', cursor: 'pointer' }}
+                  onClick={() => handleSort('productName')}
+                >
+                  Product {sortConfig.key === 'productName' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  sx={{ color: '#fff', borderColor: '#333', cursor: 'pointer' }}
+                  onClick={() => handleSort('quantity')}
+                >
+                  Quantity {sortConfig.key === 'quantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  sx={{ color: '#fff', borderColor: '#333', cursor: 'pointer' }}
+                  onClick={() => handleSort('totalAmount')}
+                >
+                  Total Amount {sortConfig.key === 'totalAmount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </TableCell>
+                <TableCell 
+                  sx={{ color: '#fff', borderColor: '#333', cursor: 'pointer' }}
+                  onClick={() => handleSort('status')}
+                >
+                  Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredData.length > 0 ? (
-                filteredData
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row) => {
-                    console.log('Row data:', row); // Debug log for each row
-                    return (
-                      <TableRow key={row._id || row.id || Math.random()}>
-                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
-                          {formatDate(row.date || row.saleDate)}
-                        </TableCell>
-                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
-                          {row.productName || row.product?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
-                          {row.quantity || 0}
-                        </TableCell>
-                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
-                          ${(row.totalAmount || 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
-                          {row.status || 'Completed'}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+              {getSortedData().length > 0 ? (
+                getSortedData()
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((row) => (
+                    <TableRow key={row._id || row.id || Math.random()}>
+                      <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                        {formatDate(row.date || row.saleDate)}
+                      </TableCell>
+                      <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                        {row.productName || row.product?.name || 'N/A'}
+                      </TableCell>
+                      <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                        {row.quantity || 0}
+                      </TableCell>
+                      <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                        ${(row.totalAmount || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                        <Chip
+                          label={row.status || 'Completed'}
+                          color={
+                            (row.status || 'Completed').toLowerCase() === 'completed' ? 'success' :
+                            (row.status || 'Completed').toLowerCase() === 'pending' ? 'warning' :
+                            (row.status || 'Completed').toLowerCase() === 'cancelled' ? 'error' : 'default'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} sx={{ color: '#fff', borderColor: '#333', textAlign: 'center' }}>
-                    {searchTerm ? 'No matching records found' : 'No data available'}
+                    {searchTerm || filterStatus !== 'all' ? 'No matching records found' : 'No data available'}
                   </TableCell>
-                </TableRow>
+                  </TableRow>
               )}
             </TableBody>
           </Table>
@@ -558,7 +784,8 @@ const Report = () => {
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          sx={{
+          sx={
+            {
             color: '#fff',
             '& .MuiTablePagination-select': { color: '#fff' },
             '& .MuiTablePagination-selectIcon': { color: '#fff' },
