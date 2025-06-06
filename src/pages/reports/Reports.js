@@ -31,6 +31,9 @@ import axios from 'axios';
 // Add base URL configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+// Log the API URL being used (this will help debug)
+console.log('API Base URL:', API_BASE_URL);
+
 const Report = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,9 +70,10 @@ const Report = () => {
       const formattedStartDate = dateRange.startDate.toISOString().split('T')[0];
       const formattedEndDate = dateRange.endDate.toISOString().split('T')[0];
 
-      console.log('Fetching data with dates:', { formattedStartDate, formattedEndDate });
+      const apiUrl = `${API_BASE_URL}/api/reports/sales`;
+      console.log('Attempting to fetch from:', apiUrl);
 
-      const response = await axios.get(`${API_BASE_URL}/api/reports/sales`, {
+      const response = await axios.get(apiUrl, {
         params: {
           startDate: formattedStartDate,
           endDate: formattedEndDate
@@ -77,10 +81,17 @@ const Report = () => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
+        },
+        // Add timeout and validate status
+        timeout: 10000, // 10 seconds timeout
+        validateStatus: function (status) {
+          return status >= 200 && status < 500; // Accept all responses to handle them properly
         }
       });
       
-      console.log('API Response:', response.data);
+      console.log('API Response Status:', response.status);
+      console.log('API Response Headers:', response.headers);
+      console.log('API Response Data:', response.data);
 
       if (response.data) {
         // Check if the response has a data property
@@ -111,9 +122,18 @@ const Report = () => {
       }
     } catch (err) {
       console.error('Error fetching report data:', err);
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        response: err.response,
+        request: err.request
+      });
+
       let errorMessage = 'Failed to fetch data. Please try again later.';
       
       if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
         if (err.response.status === 401) {
           errorMessage = 'Session expired. Please login again.';
         } else if (err.response.status === 404) {
@@ -122,7 +142,17 @@ const Report = () => {
           errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
         }
       } else if (err.request) {
-        errorMessage = 'No response from server. Please check your connection and ensure the API is accessible.';
+        // The request was made but no response was received
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (err.code === 'ERR_NETWORK') {
+          errorMessage = 'Network error. Please check your internet connection and ensure the API server is running.';
+        } else {
+          errorMessage = `Connection error: ${err.message}. Please check your connection and ensure the API is accessible.`;
+        }
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage = `Error: ${err.message}`;
       }
       
       setError(errorMessage);
@@ -168,7 +198,10 @@ const Report = () => {
       const formattedStartDate = dateRange.startDate.toISOString().split('T')[0];
       const formattedEndDate = dateRange.endDate.toISOString().split('T')[0];
 
-      const response = await axios.get(`${API_BASE_URL}/api/reports/sales/export`, {
+      const apiUrl = `${API_BASE_URL}/api/reports/sales/export`;
+      console.log('Attempting to export from:', apiUrl);
+
+      const response = await axios.get(apiUrl, {
         params: {
           startDate: formattedStartDate,
           endDate: formattedEndDate
@@ -177,7 +210,11 @@ const Report = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 30000, // 30 seconds timeout for export
+        validateStatus: function (status) {
+          return status >= 200 && status < 500;
+        }
       });
 
       // Create a download link
@@ -192,6 +229,13 @@ const Report = () => {
       showSnackbar('Report exported successfully', 'success');
     } catch (err) {
       console.error('Error exporting report:', err);
+      console.error('Export error details:', {
+        message: err.message,
+        code: err.code,
+        response: err.response,
+        request: err.request
+      });
+
       let errorMessage = 'Failed to export report';
       
       if (err.response) {
@@ -203,7 +247,15 @@ const Report = () => {
           errorMessage = err.response.data?.message || `Export failed: ${err.response.status}`;
         }
       } else if (err.request) {
-        errorMessage = 'No response from server. Please check your connection and ensure the API is accessible.';
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Export request timed out. Please try again.';
+        } else if (err.code === 'ERR_NETWORK') {
+          errorMessage = 'Network error. Please check your internet connection and ensure the API server is running.';
+        } else {
+          errorMessage = `Connection error: ${err.message}. Please check your connection and ensure the API is accessible.`;
+        }
+      } else {
+        errorMessage = `Error: ${err.message}`;
       }
       
       showSnackbar(errorMessage, 'error');
