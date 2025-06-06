@@ -28,10 +28,13 @@ import { subDays } from 'date-fns';
 import { Refresh as RefreshIcon, GetApp as DownloadIcon } from '@mui/icons-material';
 import axios from 'axios';
 
-// Add base URL configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Update base URL configuration to use production URL when deployed
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://server-az7z.onrender.com'
+  : 'http://localhost:5000';
 
 // Log the API URL being used (this will help debug)
+console.log('Environment:', process.env.NODE_ENV);
 console.log('API Base URL:', API_BASE_URL);
 
 const Report = () => {
