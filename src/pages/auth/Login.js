@@ -19,7 +19,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { fetchApi } from '../../utils/apiConfig';
+import axios from '../../utils/axiosConfig';
 
 // Netflix-inspired styled components
 const NetflixTextField = styled(TextField)(({ theme }) => ({
@@ -78,18 +78,18 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetchApi('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-      });
-
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-        await login(response);
+      const response = await axios.post('/auth/login', formData);
+      
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        await login(response.data);
         navigate('/');
       }
     } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+      setError(
+        error.response?.data?.message || 
+        'Login failed. Please check your credentials.'
+      );
       console.error('Login error:', error);
     } finally {
       setLoading(false);
