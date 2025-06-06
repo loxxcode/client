@@ -35,9 +35,15 @@ import { useResponsive, responsiveStyles } from '../../styles/responsive';
 import { formatCurrency } from '../../utils/formatters';
 
 const Dashboard = () => {
-  const [todaySales, setTodaySales] = useState(null);
-  const [lowStockProducts, setLowStockProducts] = useState(null);
-  const [stockStatus, setStockStatus] = useState(null);
+  const [todaySales, setTodaySales] = useState({ data: [], count: 0, totalRevenue: 0 });
+  const [lowStockProducts, setLowStockProducts] = useState({ data: [], count: 0 });
+  const [stockStatus, setStockStatus] = useState({
+    totalProducts: 0,
+    outOfStockCount: 0,
+    lowStockCount: 0,
+    healthyStockCount: 0,
+    totalInventoryValue: 0
+  });
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,7 +51,7 @@ const Dashboard = () => {
   
   // Enhanced stats for better visualizations
   const [dashboardStats, setDashboardStats] = useState({
-    salesTrend: 0, // percentage increase/decrease from yesterday
+    salesTrend: 0,
     revenueTrend: 0,
     topSellingProducts: [],
     inventoryValue: 0,
@@ -58,36 +64,55 @@ const Dashboard = () => {
   const refreshDashboard = async () => {
     try {
       setRefreshing(true);
+      setError(null);
       
       // Get today's sales
       const salesResponse = await getTodaySales();
-      setTodaySales(salesResponse);
+      if (salesResponse && Array.isArray(salesResponse.data)) {
+        setTodaySales(salesResponse);
+      } else {
+        setTodaySales({ data: [], count: 0, totalRevenue: 0 });
+      }
       
       // Get low stock products
       const lowStockResponse = await getLowStockProducts();
-      setLowStockProducts(lowStockResponse);
+      if (lowStockResponse && Array.isArray(lowStockResponse.data)) {
+        setLowStockProducts(lowStockResponse);
+      } else {
+        setLowStockProducts({ data: [], count: 0 });
+      }
       
       // Get stock status
       const stockStatusResponse = await getStockStatusReport();
-      setStockStatus(stockStatusResponse);
+      if (stockStatusResponse) {
+        setStockStatus(stockStatusResponse);
+      } else {
+        setStockStatus({
+          totalProducts: 0,
+          outOfStockCount: 0,
+          lowStockCount: 0,
+          healthyStockCount: 0,
+          totalInventoryValue: 0
+        });
+      }
       
       // Calculate additional stats
-      if (salesResponse) {
+      if (salesResponse && Array.isArray(salesResponse.data)) {
         // Calculate mock trends (would ideally come from real data)
         const mockSalesTrend = Math.floor(Math.random() * 20) - 5; // between -5% and +15%
         const mockRevenueTrend = Math.floor(Math.random() * 25) - 10; // between -10% and +15%
         
         // Sort products by quantity sold
-        const topProducts = [...(salesResponse.data || [])]
-          .sort((a, b) => (b.quantity * b.sellingPrice) - (a.quantity * a.sellingPrice))
+        const topProducts = [...salesResponse.data]
+          .sort((a, b) => ((b.quantity || 0) * (b.sellingPrice || 0)) - ((a.quantity || 0) * (a.sellingPrice || 0)))
           .slice(0, 5);
         
         // Calculate inventory value
         const inventoryValue = stockStatusResponse ? 
-          stockStatusResponse.totalInventoryValue : 0;
+          (stockStatusResponse.totalInventoryValue || 0) : 0;
           
         // Calculate monthly revenue (mock data)
-        const monthlyRevenue = salesResponse.totalRevenue * 30; // Simplified calculation
+        const monthlyRevenue = (salesResponse.totalRevenue || 0) * 30; // Simplified calculation
         
         setDashboardStats({
           salesTrend: mockSalesTrend,
@@ -103,6 +128,17 @@ const Dashboard = () => {
       console.error("Error fetching dashboard data:", err);
       setError('Failed to load dashboard data');
       setRefreshing(false);
+      
+      // Reset data to default values on error
+      setTodaySales({ data: [], count: 0, totalRevenue: 0 });
+      setLowStockProducts({ data: [], count: 0 });
+      setStockStatus({
+        totalProducts: 0,
+        outOfStockCount: 0,
+        lowStockCount: 0,
+        healthyStockCount: 0,
+        totalInventoryValue: 0
+      });
     }
   };
   
@@ -238,7 +274,7 @@ const Dashboard = () => {
                         fontSize: { xs: '1.5rem', sm: '1.75rem' }
                       }}
                     >
-                      {todaySales ? todaySales.count : '0'}
+                      {todaySales?.count || 0}
                     </Typography>
                   </Box>
                   <Box sx={{
@@ -446,13 +482,13 @@ const Dashboard = () => {
             <Typography variant="h6" component="h2" gutterBottom>
               Sales Overview
             </Typography>
-            {todaySales && todaySales.data.length > 0 ? (
+            {Array.isArray(todaySales?.data) && todaySales.data.length > 0 ? (
               <Box sx={{ p: 2 }}>
                 <Typography variant="body1" sx={{ mb: 2 }}>
-                  Total Sales Today: {todaySales.data.reduce((total, sale) => total + sale.totalAmount, 0).toFixed(2)} USD
+                  Total Sales Today: {todaySales.data.reduce((total, sale) => total + (sale.totalAmount || 0), 0).toFixed(2)} USD
                 </Typography>
                 <Typography variant="body1" sx={{ mb: 2 }}>
-                  Products Sold: {todaySales.data.reduce((total, sale) => total + sale.quantity, 0)} units
+                  Products Sold: {todaySales.data.reduce((total, sale) => total + (sale.quantity || 0), 0)} units
                 </Typography>
                 <Typography variant="body1">
                   Unique Products: {todaySales.data.length}
@@ -473,14 +509,14 @@ const Dashboard = () => {
             <Typography variant="h6" component="h2" gutterBottom>
               Low Stock Alert
             </Typography>
-            {lowStockProducts && lowStockProducts.data.length > 0 ? (
+            {Array.isArray(lowStockProducts?.data) && lowStockProducts.data.length > 0 ? (
               <List>
                 {lowStockProducts.data.slice(0, 5).map((product) => (
-                  <React.Fragment key={product._id}>
+                  <React.Fragment key={product._id || Math.random()}>
                     <ListItem sx={{ px: 0 }}>
                       <ListItemText
-                        primary={product.name}
-                        secondary={`Current Stock: ${product.currentStock} | Min: ${product.minStockLevel}`}
+                        primary={product.name || 'Unnamed Product'}
+                        secondary={`Current Stock: ${product.currentStock || 0} | Min: ${product.minStockLevel || 0}`}
                       />
                       {product.currentStock === 0 && (
                         <WarningIcon color="error" fontSize="small" />

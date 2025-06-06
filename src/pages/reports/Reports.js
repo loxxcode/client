@@ -1,47 +1,40 @@
-import React, { useState, useCallback } from 'react';
-import { 
-  Box, 
-  Tabs, 
-  Tab, 
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Container,
   Paper,
   Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  TextField,
+  CircularProgress,
+  Alert,
+  Grid,
+  Card,
+  CardContent,
   IconButton,
   Tooltip,
   Snackbar,
-  Alert,
-  TextField
+  Button,
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { subDays } from 'date-fns';
-import ProductSalesReport from './ProductSalesReport';
-import SalesSummaryReport from './SalesSummaryReport';
-import InventoryReport from './InventoryReport';
-import AnalyticsReport from './AnalyticsReport';
 import { Refresh as RefreshIcon, GetApp as DownloadIcon } from '@mui/icons-material';
+import axios from 'axios';
 
-const TabPanel = (props) => {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`report-tabpanel-${index}`}
-      aria-labelledby={`report-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ pt: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-};
-
-const Reports = () => {
-  const [tabValue, setTabValue] = useState(0); // Default to Sales Summary tab
+const Report = () => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 30),
     endDate: new Date()
@@ -53,8 +46,97 @@ const Reports = () => {
     severity: 'success'
   });
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+  useEffect(() => {
+    fetchData();
+  }, [dateRange]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('Please login to access reports');
+        setLoading(false);
+        return;
+      }
+
+      const formattedStartDate = dateRange.startDate.toISOString().split('T')[0];
+      const formattedEndDate = dateRange.endDate.toISOString().split('T')[0];
+
+      console.log('Fetching data with dates:', { formattedStartDate, formattedEndDate });
+
+      const response = await axios.get('http://localhost:5000/api/reports/sales', {
+        params: {
+          startDate: formattedStartDate,
+          endDate: formattedEndDate
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('API Response:', response.data);
+
+      if (response.data) {
+        // Check if the response has a data property
+        const reportData = response.data.data || response.data;
+        
+        if (Array.isArray(reportData)) {
+          // Log the first few items to check their structure
+          console.log('First few items in report data:', reportData.slice(0, 3));
+          setData(reportData);
+          setError(null);
+        } else if (typeof reportData === 'object') {
+          // If it's an object with sales data
+          const salesData = reportData.sales || reportData;
+          if (Array.isArray(salesData)) {
+            console.log('First few items in sales data:', salesData.slice(0, 3));
+            setData(salesData);
+            setError(null);
+          } else {
+            setData([]);
+            setError('Invalid data format received from server');
+          }
+        } else {
+          setData([]);
+          setError('No data available for the selected date range');
+        }
+      } else {
+        setData([]);
+        setError('No data available for the selected date range');
+      }
+    } catch (err) {
+      console.error('Error fetching report data:', err);
+      let errorMessage = 'Failed to fetch data. Please try again later.';
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          errorMessage = 'Session expired. Please login again.';
+        } else if (err.response.status === 404) {
+          errorMessage = 'Report endpoint not found. Please check the API configuration.';
+        } else {
+          errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
+        }
+      } else if (err.request) {
+        errorMessage = 'No response from server. Please check your connection.';
+      }
+      
+      setError(errorMessage);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const handleDateRangeChange = (field, value) => {
@@ -64,19 +146,67 @@ const Reports = () => {
     }));
   };
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = () => {
     setIsRefreshing(true);
-    // Simulate API call
-    setTimeout(() => {
+    fetchData().finally(() => {
       setIsRefreshing(false);
-      showSnackbar('Reports refreshed successfully', 'success');
-    }, 1000);
-  }, []);
+      showSnackbar('Report refreshed successfully', 'success');
+    });
+  };
 
-  const handleExport = useCallback(() => {
-    // This would trigger export in the active report component
-    showSnackbar('Export functionality will be implemented soon', 'info');
-  }, []);
+  const handleExport = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        showSnackbar('Please login to export reports', 'error');
+        return;
+      }
+
+      const formattedStartDate = dateRange.startDate.toISOString().split('T')[0];
+      const formattedEndDate = dateRange.endDate.toISOString().split('T')[0];
+
+      const response = await axios.get('http://localhost:5000/api/reports/sales/export', {
+        params: {
+          startDate: formattedStartDate,
+          endDate: formattedEndDate
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'blob'
+      });
+
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sales-report-${formattedStartDate}-to-${formattedEndDate}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      showSnackbar('Report exported successfully', 'success');
+    } catch (err) {
+      console.error('Error exporting report:', err);
+      let errorMessage = 'Failed to export report';
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          errorMessage = 'Session expired. Please login again.';
+        } else if (err.response.status === 404) {
+          errorMessage = 'Export endpoint not found. Please check the API configuration.';
+        } else {
+          errorMessage = err.response.data?.message || `Export failed: ${err.response.status}`;
+        }
+      } else if (err.request) {
+        errorMessage = 'No response from server. Please check your connection.';
+      }
+      
+      showSnackbar(errorMessage, 'error');
+    }
+  };
 
   const showSnackbar = (message, severity = 'info') => {
     setSnackbar({
@@ -90,6 +220,71 @@ const Reports = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  const formatDate = (dateString) => {
+    console.log('Raw date value:', dateString); // Debug log
+    
+    if (!dateString) {
+      console.log('Date is null or undefined');
+      return 'N/A';
+    }
+
+    try {
+      // Check if the date is in ISO format (YYYY-MM-DD)
+      if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+
+      // Try parsing as a regular date
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date value:', dateString);
+        return 'Invalid Date';
+      }
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error, 'Date value:', dateString);
+      return 'Invalid Date';
+    }
+  };
+
+  const filteredData = data.filter((item) => {
+    const searchTermLower = searchTerm.toLowerCase();
+    
+    // Safely check each field that might be undefined
+    const productName = (item.productName || item.product?.name || '').toLowerCase();
+    const date = formatDate(item.date).toLowerCase();
+    const status = (item.status || '').toLowerCase();
+    const quantity = String(item.quantity || '').toLowerCase();
+    const totalAmount = String(item.totalAmount || '').toLowerCase();
+
+    return (
+      productName.includes(searchTermLower) ||
+      date.includes(searchTermLower) ||
+      status.includes(searchTermLower) ||
+      quantity.includes(searchTermLower) ||
+      totalAmount.includes(searchTermLower)
+    );
+  });
+
+  if (loading && !isRefreshing) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3, backgroundColor: '#141414', minHeight: '100vh' }}>
       <Box sx={{ 
@@ -101,7 +296,7 @@ const Reports = () => {
         gap: 2 
       }}>
         <Typography variant="h4" sx={{ color: '#fff', fontWeight: 'bold' }}>
-          Reports
+          Detailed Report
         </Typography>
         
         <Box sx={{ 
@@ -116,11 +311,11 @@ const Reports = () => {
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Box sx={{ 
               display: 'flex', 
-              flexDirection: { xs: 'column', sm: 'row', md: 'row', lg: 'row' },
+              flexDirection: { xs: 'column', sm: 'row' },
               gap: 2, 
               width: '100%',
               '& > *': {
-                width: { xs: '100%', sm: 'auto', md: 'auto', lg: 'auto' }
+                width: { xs: '100%', sm: 'auto' }
               }
             }}>
               <DatePicker
@@ -177,7 +372,7 @@ const Reports = () => {
               flex: { xs: 1, sm: 'none' }
             }
           }}>
-            <Tooltip title="Refresh Reports">
+            <Tooltip title="Refresh Report">
               <IconButton 
                 onClick={handleRefresh}
                 disabled={isRefreshing}
@@ -208,90 +403,114 @@ const Reports = () => {
         </Box>
       </Box>
 
-      <Paper sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
-        <Box sx={{ width: '100%', overflowX: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
-          <Tabs 
-            value={tabValue} 
-            onChange={handleTabChange}
-            textColor="inherit"
-            indicatorColor="primary"
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              minHeight: 48,
-              '& .MuiTabs-scrollButtons': {
-                color: '#fff',
-                '&.Mui-disabled': { opacity: 0.3 },
-                '&:hover': { color: '#e50914' }
-              },
-              '& .MuiTabs-indicator': { 
-                backgroundColor: '#e50914',
-                height: 3
-              },
-              '& .MuiTab-root': { 
-                color: '#fff', 
-                opacity: 0.7,
-                minHeight: 48,
-                padding: '6px 16px',
-                '&.Mui-selected': { 
-                  color: '#fff',
-                  opacity: 1
-                },
-                '&:hover': {
-                  color: '#e50914',
-                  opacity: 1
-                },
-                '@media (max-width: 600px)': {
-                  minWidth: 'auto',
-                  padding: '6px 12px',
-                  fontSize: '0.75rem'
-                }
-              },
-              borderBottom: '1px solid #333',
-              mb: 3
-            }}
-          >
-            <Tab label="Sales Summary" />
-            <Tab label="Product Sales" />
-            <Tab label="Inventory" />
-            <Tab label="Analytics" />
-          </Tabs>
-        </Box>
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            '& .MuiAlert-icon': { color: '#e50914' },
+            '& .MuiAlert-message': { color: '#fff' }
+          }}
+          action={
+            <Button 
+              color="inherit" 
+              size="small" 
+              onClick={fetchData}
+              sx={{ color: '#fff' }}
+            >
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
 
-        <TabPanel value={tabValue} index={0}>
-          <SalesSummaryReport 
-            dateRange={dateRange} 
-            isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={1}>
-          <ProductSalesReport 
-            dateRange={dateRange} 
-            isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={2}>
-          <InventoryReport 
-            dateRange={dateRange} 
-            isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={3}>
-          <AnalyticsReport 
-            dateRange={dateRange} 
-            isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        </TabPanel>
+      <Paper sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
+        <TextField
+          fullWidth
+          label="Search"
+          variant="outlined"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search by product, date, status..."
+          sx={{ 
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': { borderColor: '#333' },
+              '&:hover fieldset': { borderColor: '#e50914' },
+            },
+            '& .MuiInputLabel-root': { color: '#999' },
+            '& .MuiInputBase-input': { color: '#fff' },
+          }}
+        />
+
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Date</TableCell>
+                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Product</TableCell>
+                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Quantity</TableCell>
+                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Total Amount</TableCell>
+                <TableCell sx={{ color: '#fff', borderColor: '#333' }}>Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredData.length > 0 ? (
+                filteredData
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((row) => {
+                    console.log('Row data:', row); // Debug log for each row
+                    return (
+                      <TableRow key={row._id || row.id || Math.random()}>
+                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                          {formatDate(row.date || row.saleDate)}
+                        </TableCell>
+                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                          {row.productName || row.product?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                          {row.quantity || 0}
+                        </TableCell>
+                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                          ${(row.totalAmount || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell sx={{ color: '#fff', borderColor: '#333' }}>
+                          {row.status || 'Completed'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} sx={{ color: '#fff', borderColor: '#333', textAlign: 'center' }}>
+                    {searchTerm ? 'No matching records found' : 'No data available'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25]}
+          component="div"
+          count={filteredData.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            color: '#fff',
+            '& .MuiTablePagination-select': { color: '#fff' },
+            '& .MuiTablePagination-selectIcon': { color: '#fff' },
+            '& .MuiIconButton-root': { color: '#fff' },
+            '& .MuiIconButton-root.Mui-disabled': { color: '#666' },
+          }}
+        />
       </Paper>
-      
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -301,29 +520,13 @@ const Reports = () => {
         <Alert 
           onClose={handleCloseSnackbar} 
           severity={snackbar.severity}
-          sx={{ 
-            width: '100%',
-            bgcolor: '#1a1a1a',
-            color: '#fff',
-            '& .MuiAlert-icon': { color: snackbar.severity === 'error' ? '#e50914' : '#e50914' },
-            '& .MuiAlert-message': { color: '#fff' }
-          }}
+          sx={{ width: '100%' }}
         >
           {snackbar.message}
         </Alert>
       </Snackbar>
-      
-      <style jsx global>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-      `}</style>
     </Box>
   );
 };
 
-export default Reports;
+export default Report; 

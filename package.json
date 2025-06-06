@@ -37,7 +37,6 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-  "proxy": "https://server-az7z.onrender.com",
   "eslintConfig": {
     "extends": [
       "react-app",

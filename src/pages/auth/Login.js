@@ -78,11 +78,8 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/auth/login', formData);
-      
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        await login(response.data);
+      const response = await login(formData);
+      if (response.token) {
         navigate('/');
       }
     } catch (error) {

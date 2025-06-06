@@ -1,26 +1,19 @@
 import axios from 'axios';
-
-// Use the server URL for API requests
-const API_URL = process.env.NODE_ENV === 'development' 
-  ? '*' // This will use the proxy in development
-  : 'https://server-az7z.onrender.com/api';
-
+import { BASE_URL } from './config';
 
 // Configure Axios
 const instance = axios.create({
-  baseURL: API_URL,
-  withCredentials: true, // This is valid and needed for cookies
+  baseURL: BASE_URL,
+  withCredentials: true,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    // ✅ DO NOT include CORS headers like allowedHeaders or access-control-* here
   }
 });
 
-
 // Log the configuration
-console.log('API configured with direct connection to:', API_URL);
+console.log('API configured with base URL:', BASE_URL);
 
 // Add a request interceptor to modify each request
 instance.interceptors.request.use(function (config) {
@@ -33,7 +26,21 @@ instance.interceptors.request.use(function (config) {
     config.url = `${config.url}?_t=${timestamp}`;
   }
   
-  console.log(`Making request to: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
+  // Ensure CORS headers are set correctly
+  config.headers['Content-Type'] = 'application/json';
+  config.headers['Accept'] = 'application/json';
+  
+  // Log the full URL being requested
+  const fullUrl = `${config.baseURL}${config.url}`;
+  console.log('Request details:', {
+    method: config.method.toUpperCase(),
+    fullUrl: fullUrl,
+    baseURL: config.baseURL,
+    endpoint: config.url,
+    headers: config.headers,
+    data: config.data
+  });
+  
   return config;
 });
 
@@ -50,16 +57,17 @@ instance.interceptors.response.use(
     if (error.message.includes('timeout') && originalRequest.method === 'post' && !originalRequest._retry) {
       console.log('Request timed out. Retrying once...');
       originalRequest._retry = true;
-      
-      // Just retry with the same configuration
-      // This uses the relative URL which works with Vercel's proxy
-      console.log(`Retrying request: ${originalRequest.method.toUpperCase()} ${originalRequest.url}`);
-      
       return instance(originalRequest);
     }
     
     if (error.response) {
-      console.error('API Error:', error.response.status, error.response.data);
+      console.error('API Error:', {
+        status: error.response.status,
+        data: error.response.data,
+        url: error.config.url,
+        baseURL: error.config.baseURL,
+        fullUrl: `${error.config.baseURL}${error.config.url}`
+      });
     } else if (error.request) {
       console.error('Network Error:', error.message);
     } else {

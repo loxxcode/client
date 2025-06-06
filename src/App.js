@@ -303,10 +303,11 @@ const ScrollToTop = () => {
 
 const AnimatedRoutes = () => {
   const location = useLocation();
-  
+  const { isAuthenticated } = useAuth();
+
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname.split('/')[1]}>
+      <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<Login />} />
         <Route
           path="/"
@@ -316,13 +317,14 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
-          <Route path="profile" element={<Profile />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="products" element={<Products />} />
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="stock-in" element={<StockIn />} />
           <Route path="sales" element={<Sales />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
     </AnimatePresence>

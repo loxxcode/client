@@ -93,18 +93,18 @@ const Sales = () => {
       const currentMonth = moment().format('YYYY-MM');
       
       const todaySales = stockOuts.filter(sale => 
-        moment(sale.date).format('YYYY-MM-DD') === today
+        moment(sale.saleDate).format('YYYY-MM-DD') === today
       );
       
       const monthlySales = stockOuts.filter(sale => 
-        moment(sale.date).format('YYYY-MM') === currentMonth
+        moment(sale.saleDate).format('YYYY-MM') === currentMonth
       );
       
       const stats = {
         todayCount: todaySales.length,
-        todayTotal: todaySales.reduce((sum, sale) => sum + (sale.sellingPrice * sale.quantity), 0),
+        todayTotal: todaySales.reduce((sum, sale) => sum + (sale.salePrice * sale.quantity), 0),
         monthlyCount: monthlySales.length,
-        monthlyTotal: monthlySales.reduce((sum, sale) => sum + (sale.sellingPrice * sale.quantity), 0)
+        monthlyTotal: monthlySales.reduce((sum, sale) => sum + (sale.salePrice * sale.quantity), 0)
       };
       
       setSalesStats(stats);
@@ -123,7 +123,15 @@ const Sales = () => {
       
       setStockOuts(stockOutResponse.data);
       setProducts(productsResponse.data);
-      setTodaySalesSummary(todaySalesResponse);
+      
+      // Update today's sales summary with the new response structure
+      if (todaySalesResponse) {
+        setTodaySalesSummary({
+          totalRevenue: todaySalesResponse.totalRevenue || 0,
+          count: todaySalesResponse.totalSales || 0
+        });
+      }
+      
       setLoading(false);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -198,19 +206,21 @@ const Sales = () => {
   useEffect(() => {
     if (formik.values.quantity && formik.values.salePrice) {
       const total = formik.values.quantity * formik.values.salePrice;
-      formik.setFieldValue('totalAmount', total);
+      if (total !== formik.values.totalAmount) {
+        formik.setFieldValue('totalAmount', total, false);
+      }
     }
-  }, [formik.values.quantity, formik.values.salePrice, formik]);
+  }, [formik.values.quantity, formik.values.salePrice]);
 
   // Set product's default sale price when product is selected
   useEffect(() => {
     if (formik.values.product && products.length > 0) {
       const selectedProduct = products.find(p => p._id === formik.values.product);
       if (selectedProduct && !formik.values.salePrice) {
-        formik.setFieldValue('salePrice', selectedProduct.unitPrice);
+        formik.setFieldValue('salePrice', selectedProduct.unitPrice, false);
       }
     }
-  }, [formik.values.product, products, formik]);
+  }, [formik.values.product, products]);
 
   const handleAddClick = () => {
     setDialogType('add');
@@ -469,10 +479,20 @@ const Sales = () => {
       
       {/* Sales Dashboard Cards - New responsive grid layout */}
       <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Grid item xs={6} sm={6}>
-          <Card sx={responsiveStyles.netflixMobileCard}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{
+            ...responsiveStyles.netflixMobileCard,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
             <Box sx={{ p: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center' }}>
-              <ShoppingCartIcon sx={{ color: theme.palette.primary.main, mr: 1.5, fontSize: { xs: '1.5rem', sm: '2rem' } }} />
+              <ShoppingCartIcon sx={{ 
+                color: theme.palette.primary.main, 
+                mr: 1.5, 
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' } 
+              }} />
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                   Today's Sales
@@ -481,7 +501,7 @@ const Sales = () => {
                   variant="h5" 
                   sx={{ 
                     fontWeight: 'bold',
-                    fontSize: { xs: '1.25rem', sm: '1.5rem' }
+                    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }
                   }}
                 >
                   {salesStats.todayCount}
@@ -490,10 +510,20 @@ const Sales = () => {
             </Box>
           </Card>
         </Grid>
-        <Grid item xs={6} sm={6}>
-          <Card sx={responsiveStyles.netflixMobileCard}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{
+            ...responsiveStyles.netflixMobileCard,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
             <Box sx={{ p: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center' }}>
-              <CalendarTodayIcon sx={{ color: theme.palette.primary.main, mr: 1.5, fontSize: { xs: '1.5rem', sm: '2rem' } }} />
+              <CalendarTodayIcon sx={{ 
+                color: theme.palette.primary.main, 
+                mr: 1.5, 
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' } 
+              }} />
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                   Monthly Sales
@@ -502,7 +532,7 @@ const Sales = () => {
                   variant="h5" 
                   sx={{ 
                     fontWeight: 'bold',
-                    fontSize: { xs: '1.25rem', sm: '1.5rem' }
+                    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }
                   }}
                 >
                   {salesStats.monthlyCount}
@@ -511,33 +541,106 @@ const Sales = () => {
             </Box>
           </Card>
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{
+            ...responsiveStyles.netflixMobileCard,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <Box sx={{ p: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center' }}>
+              <ShoppingCartIcon sx={{ 
+                color: theme.palette.primary.main, 
+                mr: 1.5, 
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' } 
+              }} />
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Today's Revenue
+                </Typography>
+                <Typography 
+                  variant="h5" 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }
+                  }}
+                >
+                  {formatCurrency(salesStats.todayTotal)}
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{
+            ...responsiveStyles.netflixMobileCard,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <Box sx={{ p: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center' }}>
+              <CalendarTodayIcon sx={{ 
+                color: theme.palette.primary.main, 
+                mr: 1.5, 
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' } 
+              }} />
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Monthly Revenue
+                </Typography>
+                <Typography 
+                  variant="h5" 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }
+                  }}
+                >
+                  {formatCurrency(salesStats.monthlyTotal)}
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+        </Grid>
       </Grid>
 
-      {/* Today's Sales Summary */}
+      {/* Today's Sales Summary - Made more responsive */}
       {todaySalesSummary && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>
+        <Paper sx={{ 
+          p: { xs: 1.5, sm: 2 }, 
+          mb: { xs: 2, sm: 3 },
+          borderRadius: { xs: 1, sm: 2 }
+        }}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} gutterBottom>
                 Today's Sales
               </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                {formatCurrency(todaySalesSummary.totalRevenue)}
+              <Typography variant="h4" sx={{ 
+                fontWeight: 'medium', 
+                color: 'primary.main',
+                fontSize: { xs: '1.5rem', sm: '2rem' }
+              }}>
+                {formatCurrency(todaySalesSummary.totalRevenue || 0)}
               </Typography>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} gutterBottom>
                 Items Sold
               </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 'medium' }}>
-                {todaySalesSummary.count}
+              <Typography variant="h4" sx={{ 
+                fontWeight: 'medium',
+                fontSize: { xs: '1.5rem', sm: '2rem' }
+              }}>
+                {todaySalesSummary.count || 0}
               </Typography>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} gutterBottom>
                 Date
               </Typography>
-              <Typography variant="h6">
+              <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                 {moment().format('MMMM D, YYYY')}
               </Typography>
             </Grid>
@@ -592,12 +695,29 @@ const Sales = () => {
         />
       </Paper>
 
-      {/* Add/Edit Sale Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>{dialogType === 'add' ? 'Record New Sale' : 'Edit Sale Record'}</DialogTitle>
+      {/* Add/Edit Sale Dialog - Made more responsive */}
+      <Dialog 
+        open={openDialog} 
+        onClose={() => setOpenDialog(false)} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            m: { xs: 1, sm: 2 },
+            width: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)' },
+            maxHeight: { xs: 'calc(100% - 16px)', sm: 'calc(100% - 32px)' }
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          p: { xs: 2, sm: 3 }
+        }}>
+          {dialogType === 'add' ? 'Record New Sale' : 'Edit Sale Record'}
+        </DialogTitle>
         <form onSubmit={formik.handleSubmit}>
-          <DialogContent>
-            <Grid container spacing={2}>
+          <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Grid container spacing={{ xs: 1, sm: 2 }}>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth margin="dense" error={formik.touched.product && Boolean(formik.errors.product)}>
                   <InputLabel>Product</InputLabel>
@@ -746,13 +866,25 @@ const Sales = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <DialogActions sx={{ p: { xs: 2, sm: 3 } }}>
+            <Button 
+              onClick={() => setOpenDialog(false)}
+              sx={{ 
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                px: { xs: 1, sm: 2 }
+              }}
+            >
+              Cancel
+            </Button>
             <Button 
               type="submit" 
               variant="contained"
               disabled={dialogType === 'add' && formik.values.product && 
                 formik.values.quantity > findProductStock(formik.values.product)}
+              sx={{ 
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                px: { xs: 1, sm: 2 }
+              }}
             >
               {dialogType === 'add' ? 'Record Sale' : 'Update'}
             </Button>

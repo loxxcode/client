@@ -1,4 +1,5 @@
 import axios from './axiosConfig';
+import moment from 'moment';
 // Products API
 export const getProducts = async () => {
   const response = await axios.get('/api/products');
@@ -131,8 +132,20 @@ export const deleteStockOut = async (id) => {
 };
 
 export const getTodaySales = async () => {
-  const response = await axios.get('/api/stock-out/today');
-  return response.data;
+  const startDate = moment().format('YYYY-MM-DD');
+  const endDate = moment().format('YYYY-MM-DD');
+  try {
+    const response = await axios.get(`http://localhost:5000/api/reports/sales-summary`, {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching today\'s sales:', error);
+    return {
+      totalRevenue: 0,
+      totalSales: 0
+    };
+  }
 };
 
 // Reports API
